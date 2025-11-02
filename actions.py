@@ -24,7 +24,7 @@ def turn_ship(ship, desired_heading):
     return diff  # how much we actually turned
 
 
-def move_ship(ship, game_state, sail_setting="battle"):
+def move_ship(ship, game_state, sail_setting=None):
     """
     Move ship forward based on:
     - base_speed
@@ -37,6 +37,12 @@ def move_ship(ship, game_state, sail_setting="battle"):
     # sail_setting impact
     # battle sail = stable gun platform, slower
     # full sail   = faster, maybe penalty to gunnery later
+    # default to ship's current setting unless overridden
+    if sail_setting is None:
+        sail_setting = getattr(ship, "sail_setting", "battle")
+    else:
+        ship.sail_setting = sail_setting
+
     if sail_setting == "full":
         sail_mult = 1.2
     else:
@@ -72,7 +78,7 @@ def bearing_from_to(src_ship, tgt_ship):
     ang = math.degrees(math.atan2(dy, dx)) % 360
     return ang
 
-def fire_broadside(attacker, defender):
+def fire_broadside(attacker, defender, preferred_side=None):
     """
     Resolve one broadside attack.
     Steps:
@@ -96,12 +102,29 @@ def fire_broadside(attacker, defender):
     if not can_port and not can_star:
         return f"{attacker.name} cannot bear on target."
 
-    if can_port:
-        base_firepower = attacker.guns_port
-        firing_side = "port"
-    else:
-        base_firepower = attacker.guns_starboard
-        firing_side = "starboard"
+    # Choose firing side
+    firing_side = None
+    if preferred_side in ("port", "starboard"):
+        if preferred_side == "port" and can_port:
+            firing_side = "port"
+        elif preferred_side == "starboard" and can_star:
+            firing_side = "starboard"
+        # if preferred side can't bear, fall back automatically below
+
+    if firing_side is None:
+        if can_port and can_star:
+            # pick the side with the smaller bearing difference
+            port_dir = (attacker.heading + 90) % 360
+            star_dir = (attacker.heading - 90) % 360
+            diff_port = angle_diff(port_dir, brg)
+            diff_star = angle_diff(star_dir, brg)
+            firing_side = "port" if diff_port <= diff_star else "starboard"
+        elif can_port:
+            firing_side = "port"
+        else:
+            firing_side = "starboard"
+
+    base_firepower = attacker.guns_port if firing_side == "port" else attacker.guns_starboard
 
     # Range bands: point blank (<2), close (<5), long (<8), else out of range
     if rng < 2:
@@ -113,6 +136,25 @@ def fire_broadside(attacker, defender):
     else:
         return f"Out of range (~{rng:.1f})."
 
+    # Ammo effects (based on attacker's currently loaded ammo)
+    ammo = getattr(attacker, "loaded_ammo", None) or getattr(attacker, "ammo_type", "round")
+    hull_mult = 1.0
+    rig_mult = 1.0
+    crew_mult = 1.0
+
+    if ammo == "chain":
+        # Chain shot: limited range, increased rigging damage, reduced hull
+        if rng >= 5:
+            return f"Out of range for chain shot (~{rng:.1f})."
+        hull_mult = 0.5
+        rig_mult = 2.0
+        crew_mult = 0.8
+    elif ammo == "double":
+        # Double-shot: very short range, double crew damage (close carnage)
+        if rng >= 2:
+            return f"Out of range for double-shot (~{rng:.1f})."
+        crew_mult = 2.0
+
     # damaged guns? we could later reduce firepower if hull <50%, etc.
     # for now keep it simple
     raw_damage = base_firepower * rng_mult
@@ -121,10 +163,10 @@ def fire_broadside(attacker, defender):
     variance = random.uniform(0.8, 1.2)
     dmg = raw_damage * variance
 
-    # split damage: 60% hull, 30% rigging, 10% crew
-    hull_dmg = dmg * 0.6
-    rig_dmg = dmg * 0.3
-    crew_dmg = dmg * 0.1
+    # split damage baseline: 60% hull, 30% rigging, 10% crew
+    hull_dmg = dmg * 0.6 * hull_mult
+    rig_dmg = dmg * 0.3 * rig_mult
+    crew_dmg = dmg * 0.1 * crew_mult
 
     defender.hull -= hull_dmg
     defender.rigging -= rig_dmg
@@ -136,6 +178,9 @@ def fire_broadside(attacker, defender):
         defender.rigging = 0
     if defender.crew < 0:
         defender.crew = 0
+
+    # crew should be whole numbers for display and logic
+    defender.crew = int(round(defender.crew))
 
     # sink check
     sunk = False
@@ -151,6 +196,10 @@ def fire_broadside(attacker, defender):
         f"Range {rng:.1f}. Damage dealt: "
         f"Hull -{hull_dmg:.1f}, Rigging -{rig_dmg:.1f}, Crew -{crew_dmg:.1f}."
     )
+
+    # After firing, guns are unloaded and must be reloaded before next shot
+    if hasattr(attacker, "loaded_ammo"):
+        attacker.loaded_ammo = None
 
     if sunk:
         summary += f"\n{defender.name} is sinking!"

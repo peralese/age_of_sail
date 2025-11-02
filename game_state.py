@@ -18,9 +18,9 @@ def movement_modifier(angle_diff_degrees: float) -> float:
     angle = min(angle_diff_degrees, 180)
 
     # super crude first-pass model:
-    #   < 40° off wind: basically in irons, barely moving
-    #   ~60-120°: fastest
-    #   >150°: a little slower running dead downwind
+    #   < 40 deg off wind: basically in irons, barely moving
+    #   ~60-120 deg: fastest
+    #   >150 deg: a little slower running dead downwind
     if angle < 40:
         return 0.2
     elif angle < 70:
@@ -32,10 +32,12 @@ def movement_modifier(angle_diff_degrees: float) -> float:
     else:
         return 0.6
 
+
 def angle_diff(a, b):
     """smallest absolute difference in degrees between two headings"""
     diff = abs(a - b) % 360
     return diff if diff <= 180 else 360 - diff
+
 
 def distance(a, b):
     """Euclidean distance between two (x,y) points."""
@@ -46,10 +48,12 @@ def distance(a, b):
 # Ship / GameState
 # -----------------
 
+
 class Ship:
     """
     Represents a single ship-of-the-line / frigate style unit.
     """
+
     def __init__(self,
                  name: str,
                  nation: str,
@@ -92,6 +96,15 @@ class Ship:
         self.alive = True
         self.surrendered = False
 
+        # Tactical state
+        self.sail_setting = "battle"   # 'battle' or 'full'
+        self.ammo_type = "round"       # preferred type when loading
+        self.loaded_ammo = None         # currently loaded: None requires loading
+
+        # Action Points per turn
+        self.ap_max = 4
+        self.ap = 0
+
     def is_sunk(self):
         return self.hull <= 0
 
@@ -131,12 +144,11 @@ class GameState:
     """
     Holds everything about the battle.
     """
+
     def __init__(self, ships, wind_dir=90, wind_speed=10):
-        # wind_dir: direction the wind is blowing TOWARDS in degrees.
-        # eg 90 = wind blowing east->west or west->east?
-        # We'll define: heading 0 = east, 90 = north.
-        # Let's say the wind_dir = direction FROM which wind blows.
-        # For now we'll just use wind_dir abstractly in movement math.
+        # wind_dir: direction FROM which the wind blows, in degrees.
+        # Heading convention: 0 = east, 90 = north, 180 = west, 270 = south.
+        # For milestone 1 we use wind_dir abstractly for movement math.
         self.ships = ships
         self.turn_number = 1
         self.wind_dir = wind_dir      # 0-359
@@ -145,13 +157,18 @@ class GameState:
     def living_ships(self):
         return [s for s in self.ships if s.alive and not s.surrendered and not s.is_sunk()]
 
+    def start_turn(self):
+        for s in self.living_ships():
+            s.ap = s.ap_max
+
     def status_report(self):
         lines = [f"--- Turn {self.turn_number} ---"]
         for s in self.ships:
             lines.append(
-                f"{s.name} ({s.nation}) @ ({s.x:.1f}, {s.y:.1f}) hdg {s.heading:.0f}° | "
-                f"Hull {s.hull}/{s.hull_max} Rig {s.rigging}/{s.rigging_max} "
-                f"Crew {s.crew}/{s.crew_max} "
+                f"{s.name} ({s.nation}) @ ({s.x:.1f}, {s.y:.1f}) hdg {s.heading:.0f} deg | "
+                f"Hull {s.hull:.1f}/{s.hull_max} Rig {s.rigging:.1f}/{s.rigging_max} "
+                f"Crew {int(round(s.crew))}/{s.crew_max} "
+                f"Ammo {getattr(s, 'loaded_ammo', None) or 'Unloaded'} "
                 f"{'SURRENDERED' if s.surrendered else ''}"
                 f"{'SUNK' if s.is_sunk() else ''}"
             )
