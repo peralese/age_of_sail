@@ -1,0 +1,135 @@
+* {
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #08182b;
+  color: #e8eef5;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+#board {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#canvas {
+  background: #0b2740;
+}
+
+#panel {
+  width: 360px;
+  padding: 16px;
+  background: #0e1f33;
+  border-left: 1px solid #1d3a55;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#panel h1 {
+  font-size: 20px;
+  margin: 0 0 12px;
+  color: #e0c060;
+}
+
+.ship-card {
+  border: 1px solid #1d3a55;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #122c47;
+}
+
+.ship-card h2 {
+  font-size: 14px;
+  margin: 0 0 6px;
+}
+
+.ship-card .stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin: 2px 0;
+}
+
+.ship-card.active {
+  border-color: #e0c060;
+}
+
+#actions {
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#actions button, #actions select {
+  padding: 8px;
+  font-size: 13px;
+  border: 1px solid #2c4f74;
+  border-radius: 4px;
+  background: #1a3a5c;
+  color: #e8eef5;
+  cursor: pointer;
+}
+
+#actions button:hover:not(:disabled) {
+  background: #2c4f74;
+}
+
+#actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.action-row {
+  display: flex;
+  gap: 6px;
+}
+
+.action-row > * {
+  flex: 1;
+}
+
+#log {
+  flex: 1;
+  font-size: 12px;
+  background: #07141f;
+  border: 1px solid #1d3a55;
+  border-radius: 6px;
+  padding: 8px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  min-height: 160px;
+}
+
+#log .entry {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #1d3a55;
+}
+
+#log .turn-marker {
+  color: #e0c060;
+  font-weight: bold;
+}
+
+.victory-banner {
+  margin-top: 10px;
+  padding: 10px;
+  text-align: center;
+  font-weight: bold;
+  background: #2e7d32;
+  border-radius: 6px;
+}
